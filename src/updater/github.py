@@ -15,7 +15,9 @@ from pathlib import Path
 from typing import Any, Callable
 
 # ── Configurable repo ────────────────────────────────────────────────────────
-GITHUB_REPO: str = "V0nCleef/evejs-launcher"
+from src.rpg import UPDATE_REPOSITORY
+
+GITHUB_REPO: str = UPDATE_REPOSITORY
 
 # ── Internal constants ───────────────────────────────────────────────────────
 _API_BASE: str = "https://api.github.com/repos"

@@ -7,9 +7,12 @@ from http.client import HTTPConnection, HTTPException
 import logging
 import os
 from pathlib import Path
+
 import socket
 import time
 from urllib.parse import urlsplit
+
+from ..rpg import GAME_PORT, PROXY_URL, runtime_environment
 
 from .client_autologin import (
     AutoLoginLaunch,
@@ -181,8 +184,8 @@ class ClientLaunchContext:
     def native(
         cls,
         *,
-        game_port: int = 26000,
-        proxy_url: str = "http://127.0.0.1:26002",
+        game_port: int = GAME_PORT,
+        proxy_url: str = PROXY_URL,
     ) -> "ClientLaunchContext":
         return cls("127.0.0.1", game_port, proxy_url)
 
@@ -306,7 +309,7 @@ def require_client_endpoints_ready(
     )
 
 
-def build_env(evejs_root: str, proxy_url: str = "http://127.0.0.1:26002") -> dict[str, str]:
+def build_env(evejs_root: str, proxy_url: str = PROXY_URL) -> dict[str, str]:
     """Replicate the environment setup from Play.bat.
 
     Returns a dict suitable for passing to subprocess.Popen(env=...).
@@ -316,7 +319,7 @@ def build_env(evejs_root: str, proxy_url: str = "http://127.0.0.1:26002") -> dic
     repo = Path(evejs_root)
     ca_pem = repo / "server" / "certs" / "xmpp-ca-cert.pem"
 
-    env = os.environ.copy()
+    env = runtime_environment()
     _apply_legacy_identity_compatibility(env)
     # Never let a stale parent-process cache path leak into the client. A
     # verified path for the selected copied client is installed before spawn.
@@ -397,7 +400,7 @@ def _apply_legacy_identity_compatibility(env: dict[str, str]) -> None:
 def launch_client(
     evejs_root: str,
     profile_tq_path: Path,
-    proxy_url: str = "http://127.0.0.1:26002",
+    proxy_url: str = PROXY_URL,
     client_path: str = "",
     *,
     launch_context: ClientLaunchContext | None = None,
@@ -469,6 +472,9 @@ def launch_client(
         env["EO_REMOTEFILECACHEFOLDER"] = str(resfiles)
 
         arguments: tuple[str, ...] = (f"/port:{effective_context.game_port}",)
+        if effective_context.target_identity is None:
+            # Match the RPG Play.bat resource origin, avoiding the main tunnel.
+            arguments += (f"/resfileserver={effective_proxy.rstrip('/')}/resfiles/",)
         if auto_login is not None:
             try:
                 arguments += require_auto_login_arguments(

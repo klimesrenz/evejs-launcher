@@ -10,8 +10,8 @@ SOURCE = {
     "browser_download_url": "https://example.invalid/source.zip",
 }
 BINARY = {
-    "name": "EveJS-Launcher-V1.zip",
-    "browser_download_url": "https://example.invalid/EveJS-Launcher-V1.zip",
+    "name": "EveJS-RPG-Launcher.zip",
+    "browser_download_url": "https://example.invalid/EveJS-RPG-Launcher.zip",
 }
 
 
@@ -49,4 +49,4 @@ def test_checker_reports_missing_launcher_package_without_offering_update(qapp, 
 
     assert updates == []
     assert len(failures) == 1
-    assert "EveJS-Launcher-V1.zip" in failures[0]
+    assert "EveJS-RPG-Launcher.zip" in failures[0]

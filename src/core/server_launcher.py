@@ -20,6 +20,7 @@ import tomllib
 from pathlib import Path
 
 from ..constants import Ports
+from ..rpg import runtime_environment
 from ..config import CONFIG_DIR
 from .mod_manager import active_loader_mods, scan_mods
 from .shared_mod_menu import stage_shared_menu
@@ -801,7 +802,7 @@ def start_game_server(
     SERVER_CONSOLE_LOG.write_text("", encoding="utf-8")
     ensure_native_game_dependencies(server_dir)
 
-    env = os.environ.copy()
+    env = runtime_environment()
     env["EVEJS_PROXY_LOCAL_INTERCEPT"] = "1"
     # Never let an inherited data-root selection route this install's writes
     # into another EveJS root. The layout resolved above uses EveJS's default
@@ -905,7 +906,7 @@ def start_market_server(evejs_root: str) -> subprocess.Popen:
             "serve",
         ]
 
-    env = os.environ.copy()
+    env = runtime_environment()
 
     _append_market_console_marker(
         f"Market start attempt: {subprocess.list2cmdline(cmd)}"

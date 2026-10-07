@@ -203,7 +203,7 @@ class SettingsPage(QWidget):
 
         self.proxy_url_edit = QLineEdit()
         proxy_help = (
-            "Local EveJS client-traffic proxy. Keep http://127.0.0.1:26002 "
+            "Local EveJS client-traffic proxy. Keep http://127.0.0.1:27002 "
             "unless your EveJS proxy runs elsewhere."
         )
         self.proxy_url_edit.setToolTip(proxy_help)

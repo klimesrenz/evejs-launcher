@@ -129,6 +129,11 @@ def _initialize_ui_language(system_locale: str) -> dict:
 
 
 def main() -> int:
+    from src.rpg import runtime_environment
+    # Tool subprocesses inherit the same isolated environment as Game/Market.
+    clean_environment = runtime_environment()
+    os.environ.clear()
+    os.environ.update(clean_environment)
     from src.utils.logger import setup_logger, _LOG_FILE
     from src.constants import APP_VERSION
     setup_logger(__name__).info("Launcher startup version=%s log_file=%s", APP_VERSION, _LOG_FILE)

@@ -21,7 +21,7 @@ def test_install_worker_relays_download_progress_and_staged_handoff(
     """The UI worker must expose download bytes and the post-download handoff."""
     from src.updater.installer import UpdateInstallWorker
 
-    current_exe = tmp_path / "EveJS-Launcher-V1.exe"
+    current_exe = tmp_path / "EveJS-RPG-Launcher.exe"
     phases: list[tuple[str, str]] = []
     progress: list[tuple[int, int]] = []
     completed: list[tuple[bool, str]] = []
@@ -33,7 +33,7 @@ def test_install_worker_relays_download_progress_and_staged_handoff(
         progress_callback=None,
         status_callback=None,
     ) -> bool:
-        assert download_url == "https://example.invalid/EveJS-Launcher-V1.zip"
+        assert download_url == "https://example.invalid/EveJS-RPG-Launcher.zip"
         assert Path(exe_path) == current_exe
         assert progress_callback is not None
         assert status_callback is not None
@@ -45,7 +45,7 @@ def test_install_worker_relays_download_progress_and_staged_handoff(
 
     monkeypatch.setattr(platform, "run_updater", fake_run_updater)
     worker = UpdateInstallWorker(
-        "https://example.invalid/EveJS-Launcher-V1.zip",
+        "https://example.invalid/EveJS-RPG-Launcher.zip",
         current_exe,
     )
     worker.stage_changed.connect(lambda stage, detail: phases.append((stage, detail)))
@@ -81,7 +81,7 @@ def test_legacy_update_wrapper_forwards_its_progress_callback(
 
     assert installer.download_and_install(
         "https://example.invalid/update.zip",
-        tmp_path / "EveJS-Launcher-V1.exe",
+        tmp_path / "EveJS-RPG-Launcher.exe",
         progress_callback=lambda done, total: seen.append((done, total)),
     )
     assert seen == [(7, 10)]
@@ -135,16 +135,16 @@ def test_platform_updater_stages_release_and_launches_the_new_build_as_agent(
     from src.core import platform_win
     from src.updater import github
 
-    exe_name = "EveJS-Launcher-V1.exe"
-    install_dir = tmp_path / "installed" / "EveJS-Launcher-V1"
+    exe_name = "EveJS-RPG-Launcher.exe"
+    install_dir = tmp_path / "installed" / "EveJS-RPG-Launcher"
     (install_dir / "_internal").mkdir(parents=True)
     current_exe = install_dir / exe_name
     current_exe.write_bytes(b"old build")
 
-    release_archive = tmp_path / "EveJS-Launcher-V1.zip"
+    release_archive = tmp_path / "EveJS-RPG-Launcher.zip"
     with zipfile.ZipFile(release_archive, "w") as archive:
-        archive.writestr(f"EveJS-Launcher-V1/{exe_name}", b"new build")
-        archive.writestr("EveJS-Launcher-V1/_internal/runtime.bin", b"runtime")
+        archive.writestr(f"EveJS-RPG-Launcher/{exe_name}", b"new build")
+        archive.writestr("EveJS-RPG-Launcher/_internal/runtime.bin", b"runtime")
 
     staging_root = tmp_path / "staging"
     staging_root.mkdir()
@@ -177,13 +177,13 @@ def test_platform_updater_stages_release_and_launches_the_new_build_as_agent(
     monkeypatch.setattr(platform_win.subprocess, "Popen", fake_popen)
 
     success = platform_win.run_updater(
-        "https://example.invalid/EveJS-Launcher-V1.zip",
+        "https://example.invalid/EveJS-RPG-Launcher.zip",
         current_exe,
         progress_callback=lambda done, total: progress.append((done, total)),
         status_callback=lambda stage, detail: phases.append((stage, detail)),
     )
 
-    staged_dir = staging_root / "staged" / "EveJS-Launcher-V1"
+    staged_dir = staging_root / "staged" / "EveJS-RPG-Launcher"
     assert success is True
     assert progress == [(1, 2), (2, 2)]
     assert phases[0] == ("download", "Downloading update…")
@@ -204,8 +204,8 @@ def test_v1047_to_v1048_handoff_uses_new_agent_and_preserves_root_siblings(
     from src.updater import github
     from src.updater.handoff import apply_staged_update, parse_update_handoff_args
 
-    exe_name = "EveJS-Launcher-V1.exe"
-    install_dir = tmp_path / "installed" / "EveJS-Launcher-V1"
+    exe_name = "EveJS-RPG-Launcher.exe"
+    install_dir = tmp_path / "installed" / "EveJS-RPG-Launcher"
     (install_dir / "_internal").mkdir(parents=True)
     current_exe = install_dir / exe_name
     current_exe.write_bytes(b"v1.0.47 launcher")
@@ -217,11 +217,11 @@ def test_v1047_to_v1048_handoff_uses_new_agent_and_preserves_root_siblings(
     neighboring_file = install_dir / "keep-me.txt"
     neighboring_file.write_text("user-owned sibling", encoding="utf-8")
 
-    release_archive = tmp_path / "EveJS-Launcher-V1.zip"
+    release_archive = tmp_path / "EveJS-RPG-Launcher.zip"
     with zipfile.ZipFile(release_archive, "w") as archive:
-        archive.writestr(f"EveJS-Launcher-V1/{exe_name}", b"v1.0.48 launcher")
+        archive.writestr(f"EveJS-RPG-Launcher/{exe_name}", b"v1.0.48 launcher")
         archive.writestr(
-            "EveJS-Launcher-V1/_internal/runtime.bin",
+            "EveJS-RPG-Launcher/_internal/runtime.bin",
             b"v1.0.48 runtime",
         )
 
@@ -250,7 +250,7 @@ def test_v1047_to_v1048_handoff_uses_new_agent_and_preserves_root_siblings(
     monkeypatch.setattr(platform_win.subprocess, "Popen", fake_popen)
 
     assert platform_win.run_updater(
-        "https://example.invalid/EveJS-Launcher-V1.zip",
+        "https://example.invalid/EveJS-RPG-Launcher.zip",
         current_exe,
     ) is True
     assert len(launched) == 1
@@ -276,13 +276,13 @@ def test_staged_handoff_preserves_the_old_install_until_new_files_verify(
     """A failed/unfinished swap must never leave the user without a launcher."""
     from src.updater.handoff import UpdateHandoff, apply_staged_update
 
-    exe_name = "EveJS-Launcher-V1.exe"
-    target_dir = tmp_path / "installed" / "EveJS-Launcher-V1"
+    exe_name = "EveJS-RPG-Launcher.exe"
+    target_dir = tmp_path / "installed" / "EveJS-RPG-Launcher"
     (target_dir / "_internal").mkdir(parents=True)
     (target_dir / exe_name).write_bytes(b"old build")
     (target_dir / "_internal" / "runtime.bin").write_bytes(b"old runtime")
 
-    source_dir = tmp_path / "staged" / "EveJS-Launcher-V1"
+    source_dir = tmp_path / "staged" / "EveJS-RPG-Launcher"
     (source_dir / "_internal").mkdir(parents=True)
     (source_dir / exe_name).write_bytes(b"new build")
     (source_dir / "_internal" / "runtime.bin").write_bytes(b"new runtime")
@@ -318,8 +318,8 @@ def test_staged_handoff_replaces_only_launcher_owned_entries(
     """Updating beside an EveJS install must never move, replace, or delete it."""
     from src.updater.handoff import UpdateHandoff, apply_staged_update
 
-    exe_name = "EveJS-Launcher-V1.exe"
-    target_dir = tmp_path / "installed" / "EveJS-Launcher-V1"
+    exe_name = "EveJS-RPG-Launcher.exe"
+    target_dir = tmp_path / "installed" / "EveJS-RPG-Launcher"
     (target_dir / "_internal").mkdir(parents=True)
     (target_dir / exe_name).write_bytes(b"old launcher")
     (target_dir / "_internal" / "runtime.bin").write_bytes(b"old runtime")
@@ -339,7 +339,7 @@ def test_staged_handoff_replaces_only_launcher_owned_entries(
     legacy_backup_sentinel.parent.mkdir(parents=True)
     legacy_backup_sentinel.write_bytes(b"older updater data must survive too")
 
-    source_dir = tmp_path / "staged" / "EveJS-Launcher-V1"
+    source_dir = tmp_path / "staged" / "EveJS-RPG-Launcher"
     (source_dir / "_internal").mkdir(parents=True)
     (source_dir / exe_name).write_bytes(b"new launcher")
     (source_dir / "_internal" / "runtime.bin").write_bytes(b"new runtime")
@@ -380,8 +380,8 @@ def test_staged_handoff_copy_failure_restores_only_launcher_owned_entries(
     """Rollback must restore the launcher without removing colocated user data."""
     from src.updater import handoff
 
-    exe_name = "EveJS-Launcher-V1.exe"
-    target_dir = tmp_path / "installed" / "EveJS-Launcher-V1"
+    exe_name = "EveJS-RPG-Launcher.exe"
+    target_dir = tmp_path / "installed" / "EveJS-RPG-Launcher"
     (target_dir / "_internal").mkdir(parents=True)
     (target_dir / exe_name).write_bytes(b"old launcher")
     (target_dir / "_internal" / "runtime.bin").write_bytes(b"old runtime")
@@ -391,7 +391,7 @@ def test_staged_handoff_copy_failure_restores_only_launcher_owned_entries(
     user_file = target_dir / "keep-me.txt"
     user_file.write_text("still here", encoding="utf-8")
 
-    source_dir = tmp_path / "staged" / "EveJS-Launcher-V1"
+    source_dir = tmp_path / "staged" / "EveJS-RPG-Launcher"
     (source_dir / "_internal").mkdir(parents=True)
     (source_dir / exe_name).write_bytes(b"new launcher")
     (source_dir / "_internal" / "runtime.bin").write_bytes(b"new runtime")
@@ -430,8 +430,8 @@ def test_staged_handoff_refuses_an_unknown_preexisting_backup(
     """A colliding rollback directory is user-owned until proven otherwise."""
     from src.updater.handoff import UpdateHandoff, apply_staged_update
 
-    exe_name = "EveJS-Launcher-V1.exe"
-    target_dir = tmp_path / "installed" / "EveJS-Launcher-V1"
+    exe_name = "EveJS-RPG-Launcher.exe"
+    target_dir = tmp_path / "installed" / "EveJS-RPG-Launcher"
     (target_dir / "_internal").mkdir(parents=True)
     (target_dir / exe_name).write_bytes(b"old launcher")
     (target_dir / "_internal" / "runtime.bin").write_bytes(b"old runtime")
@@ -445,7 +445,7 @@ def test_staged_handoff_refuses_an_unknown_preexisting_backup(
     backup_sentinel.parent.mkdir(parents=True)
     backup_sentinel.write_bytes(b"do not delete")
 
-    source_dir = tmp_path / "staged" / "EveJS-Launcher-V1"
+    source_dir = tmp_path / "staged" / "EveJS-RPG-Launcher"
     (source_dir / "_internal").mkdir(parents=True)
     (source_dir / exe_name).write_bytes(b"new launcher")
     (source_dir / "_internal" / "runtime.bin").write_bytes(b"new runtime")
@@ -469,8 +469,8 @@ def test_staged_handoff_rejects_an_empty_runtime_before_moving_old_files(
     """An empty ``_internal`` is not a usable PyInstaller onedir release."""
     from src.updater.handoff import UpdateHandoff, apply_staged_update
 
-    exe_name = "EveJS-Launcher-V1.exe"
-    target_dir = tmp_path / "installed" / "EveJS-Launcher-V1"
+    exe_name = "EveJS-RPG-Launcher.exe"
+    target_dir = tmp_path / "installed" / "EveJS-RPG-Launcher"
     (target_dir / "_internal").mkdir(parents=True)
     (target_dir / exe_name).write_bytes(b"old launcher")
     (target_dir / "_internal" / "runtime.bin").write_bytes(b"old runtime")
@@ -478,7 +478,7 @@ def test_staged_handoff_rejects_an_empty_runtime_before_moving_old_files(
     preserved.parent.mkdir(parents=True)
     preserved.write_bytes(b"preserve me")
 
-    source_dir = tmp_path / "staged" / "EveJS-Launcher-V1"
+    source_dir = tmp_path / "staged" / "EveJS-RPG-Launcher"
     (source_dir / "_internal").mkdir(parents=True)
     (source_dir / exe_name).write_bytes(b"incomplete launcher")
 
@@ -502,11 +502,11 @@ def test_staged_handoff_keeps_the_user_informed_while_windows_releases_files(
     """Retain the proven lock-release pause, but make the wait visible."""
     from src.updater.handoff import UpdateHandoff, apply_staged_update
 
-    exe_name = "EveJS-Launcher-V1.exe"
-    target_dir = tmp_path / "installed" / "EveJS-Launcher-V1"
+    exe_name = "EveJS-RPG-Launcher.exe"
+    target_dir = tmp_path / "installed" / "EveJS-RPG-Launcher"
     target_dir.mkdir(parents=True)
     (target_dir / exe_name).write_bytes(b"old build")
-    source_dir = tmp_path / "staged" / "EveJS-Launcher-V1"
+    source_dir = tmp_path / "staged" / "EveJS-RPG-Launcher"
     (source_dir / "_internal").mkdir(parents=True)
     (source_dir / exe_name).write_bytes(b"new build")
     (source_dir / "_internal" / "runtime.bin").write_bytes(b"new runtime")
@@ -535,18 +535,18 @@ def test_main_recognises_the_private_update_handoff_arguments() -> None:
         [
             "--apply-update",
             "--target-dir",
-            r"C:\Apps\EveJS-Launcher-V1",
+            r"C:\Apps\EveJS-RPG-Launcher",
             "--source-dir",
-            r"C:\Temp\evejs_launcher_update\EveJS-Launcher-V1",
+            r"C:\Temp\evejs_launcher_update\EveJS-RPG-Launcher",
             "--exe-name",
-            "EveJS-Launcher-V1.exe",
+            "EveJS-RPG-Launcher.exe",
             "--parent-pid",
             "12345",
         ]
     )
 
     assert handoff is not None
-    assert handoff.exe_name == "EveJS-Launcher-V1.exe"
+    assert handoff.exe_name == "EveJS-RPG-Launcher.exe"
     assert handoff.parent_pid == 12345
     assert _parse_update_handoff([]) is None
 
@@ -595,7 +595,7 @@ def test_main_window_shows_update_progress_before_starting_install_worker(
 
     class FakeWorker:
         def __init__(self, url, current_exe, parent=None):  # type: ignore[no-untyped-def]
-            assert url == "https://example.invalid/EveJS-Launcher-V1.zip"
+            assert url == "https://example.invalid/EveJS-RPG-Launcher.zip"
             assert current_exe
             assert parent is not None
             self.stage_changed = FakeSignal()
@@ -614,7 +614,7 @@ def test_main_window_shows_update_progress_before_starting_install_worker(
     window._status_timer.stop()
     window._prune_timer.stop()
     window._latest_version = "v1.0.33"
-    window._latest_download_url = "https://example.invalid/EveJS-Launcher-V1.zip"
+    window._latest_download_url = "https://example.invalid/EveJS-RPG-Launcher.zip"
     try:
         window._begin_update_install()
 
@@ -632,7 +632,7 @@ def test_update_cleanup_is_deferred_to_the_restarted_launcher_without_a_shell(
     """A completed update must not spawn cmd.exe just to remove its own artifacts."""
     from src.updater import handoff
 
-    install_dir = tmp_path / "installed" / "EveJS-Launcher-V1"
+    install_dir = tmp_path / "installed" / "EveJS-RPG-Launcher"
     (install_dir / "_internal").mkdir(parents=True)
     preserved = install_dir / "evejs" / "data" / "game-store.db"
     preserved.parent.mkdir(parents=True)
@@ -642,11 +642,11 @@ def test_update_cleanup_is_deferred_to_the_restarted_launcher_without_a_shell(
     legacy_backup.write_bytes(b"legacy backup is not ours")
     backup_dir = install_dir / ".evejs-launcher-update-backup"
     (backup_dir / "_internal").mkdir(parents=True)
-    (backup_dir / "EveJS-Launcher-V1.exe").write_bytes(b"old launcher")
+    (backup_dir / "EveJS-RPG-Launcher.exe").write_bytes(b"old launcher")
     (backup_dir / "_internal" / "runtime.bin").write_bytes(b"old runtime")
 
     staging_root = Path(tempfile.mkdtemp(prefix="evejs_launcher_update_"))
-    source_dir = staging_root / "staged" / "EveJS-Launcher-V1"
+    source_dir = staging_root / "staged" / "EveJS-RPG-Launcher"
     source_dir.mkdir(parents=True)
 
     spawned: list[tuple[tuple[object, ...], dict[str, object]]] = []
@@ -661,7 +661,7 @@ def test_update_cleanup_is_deferred_to_the_restarted_launcher_without_a_shell(
             install_dir,
             source_dir,
             backup_dir,
-            "EveJS-Launcher-V1.exe",
+            "EveJS-RPG-Launcher.exe",
         ) is True
 
         marker = install_dir / "_internal" / ".evejs-update-cleanup.json"
@@ -688,14 +688,14 @@ def test_update_cleanup_marker_write_failure_is_reported_and_preserves_backup(
     """A missing cleanup marker must never be silently reported as scheduled."""
     from src.updater import handoff
 
-    install_dir = tmp_path / "installed" / "EveJS-Launcher-V1"
+    install_dir = tmp_path / "installed" / "EveJS-RPG-Launcher"
     (install_dir / "_internal").mkdir(parents=True)
     backup_dir = install_dir / ".evejs-launcher-update-backup"
     (backup_dir / "_internal").mkdir(parents=True)
-    (backup_dir / "EveJS-Launcher-V1.exe").write_bytes(b"old launcher")
+    (backup_dir / "EveJS-RPG-Launcher.exe").write_bytes(b"old launcher")
     (backup_dir / "_internal" / "runtime.bin").write_bytes(b"old runtime")
     staging_root = Path(tempfile.mkdtemp(prefix="evejs_launcher_update_"))
-    source_dir = staging_root / "staged" / "EveJS-Launcher-V1"
+    source_dir = staging_root / "staged" / "EveJS-RPG-Launcher"
     source_dir.mkdir(parents=True)
 
     original_write_text = Path.write_text
@@ -712,7 +712,7 @@ def test_update_cleanup_marker_write_failure_is_reported_and_preserves_backup(
             install_dir,
             source_dir,
             backup_dir,
-            "EveJS-Launcher-V1.exe",
+            "EveJS-RPG-Launcher.exe",
         ) is False
         assert backup_dir.is_dir()
         assert staging_root.is_dir()
@@ -728,9 +728,9 @@ def test_update_cleanup_rejects_a_staging_root_that_contains_the_live_install() 
     from src.updater import handoff
 
     staging_root = Path(tempfile.mkdtemp(prefix="evejs_launcher_update_"))
-    source_dir = staging_root / "staged" / "EveJS-Launcher-V1"
+    source_dir = staging_root / "staged" / "EveJS-RPG-Launcher"
     source_dir.mkdir(parents=True)
-    install_dir = staging_root / "installed" / "EveJS-Launcher-V1"
+    install_dir = staging_root / "installed" / "EveJS-RPG-Launcher"
     preserved = install_dir / "evejs" / "data" / "game-store.db"
     preserved.parent.mkdir(parents=True)
     preserved.write_bytes(b"live user data")
@@ -741,7 +741,7 @@ def test_update_cleanup_rejects_a_staging_root_that_contains_the_live_install() 
             install_dir,
             source_dir,
             None,
-            "EveJS-Launcher-V1.exe",
+            "EveJS-RPG-Launcher.exe",
         ) is False
         assert not marker.exists()
 
@@ -751,7 +751,7 @@ def test_update_cleanup_rejects_a_staging_root_that_contains_the_live_install() 
                 {
                     "source_root": str(staging_root),
                     "backup_dir": None,
-                    "exe_name": "EveJS-Launcher-V1.exe",
+                    "exe_name": "EveJS-RPG-Launcher.exe",
                 }
             ),
             encoding="utf-8",
@@ -771,7 +771,7 @@ def test_update_cleanup_rejects_a_marker_that_targets_an_untrusted_path(
     """A tampered marker must never turn the launcher into a generic deleter."""
     from src.updater.handoff import cleanup_pending_update
 
-    install_dir = tmp_path / "installed" / "EveJS-Launcher-V1"
+    install_dir = tmp_path / "installed" / "EveJS-RPG-Launcher"
     (install_dir / "_internal").mkdir(parents=True)
     unrelated_dir = tmp_path / "must-not-delete"
     unrelated_dir.mkdir()
@@ -792,11 +792,11 @@ def test_update_cleanup_retains_marker_for_an_exact_backup_with_unknown_content(
     """An invalid exact backup remains retryable without deleting user data."""
     from src.updater.handoff import cleanup_pending_update
 
-    install_dir = tmp_path / "installed" / "EveJS-Launcher-V1"
+    install_dir = tmp_path / "installed" / "EveJS-RPG-Launcher"
     (install_dir / "_internal").mkdir(parents=True)
     backup_dir = install_dir / ".evejs-launcher-update-backup"
     (backup_dir / "_internal").mkdir(parents=True)
-    (backup_dir / "EveJS-Launcher-V1.exe").write_bytes(b"old launcher")
+    (backup_dir / "EveJS-RPG-Launcher.exe").write_bytes(b"old launcher")
     (backup_dir / "_internal" / "runtime.bin").write_bytes(b"old runtime")
     backup_sentinel = (
         backup_dir
@@ -813,7 +813,7 @@ def test_update_cleanup_retains_marker_for_an_exact_backup_with_unknown_content(
         {
             "source_root": str(staging_root),
             "backup_dir": str(backup_dir),
-            "exe_name": "EveJS-Launcher-V1.exe",
+            "exe_name": "EveJS-RPG-Launcher.exe",
         }
     )
     marker.write_text(marker_payload, encoding="utf-8")
@@ -821,7 +821,7 @@ def test_update_cleanup_retains_marker_for_an_exact_backup_with_unknown_content(
     try:
         for _ in range(2):
             assert cleanup_pending_update(install_dir) is False
-        assert (backup_dir / "EveJS-Launcher-V1.exe").read_bytes() == b"old launcher"
+        assert (backup_dir / "EveJS-RPG-Launcher.exe").read_bytes() == b"old launcher"
         assert (backup_dir / "_internal" / "runtime.bin").read_bytes() == b"old runtime"
         assert backup_sentinel.read_bytes() == b"never delete unknown content"
         assert staging_root.is_dir()
@@ -859,9 +859,9 @@ def test_updater_public_path_resolution_runtime_errors_fail_closed(
     """Link-loop resolution failures must be reported instead of escaping."""
     from src.updater import handoff
 
-    source_dir = tmp_path / "staged" / "EveJS-Launcher-V1"
+    source_dir = tmp_path / "staged" / "EveJS-RPG-Launcher"
     source_dir.mkdir(parents=True)
-    install_dir = tmp_path / "installed" / "EveJS-Launcher-V1"
+    install_dir = tmp_path / "installed" / "EveJS-RPG-Launcher"
     (install_dir / "_internal").mkdir(parents=True)
     original_resolve = Path.resolve
     blocked_paths = {source_dir}
@@ -881,7 +881,7 @@ def test_updater_public_path_resolution_runtime_errors_fail_closed(
         handoff.UpdateHandoff(
             target_dir=install_dir,
             source_dir=source_dir,
-            exe_name="EveJS-Launcher-V1.exe",
+            exe_name="EveJS-RPG-Launcher.exe",
             parent_pid=0,
         ),
         is_process_running=lambda _pid: False,
@@ -894,7 +894,7 @@ def test_updater_public_path_resolution_runtime_errors_fail_closed(
         install_dir,
         source_dir,
         None,
-        "EveJS-Launcher-V1.exe",
+        "EveJS-RPG-Launcher.exe",
     ) is False
 
     blocked_paths.clear()
@@ -903,7 +903,7 @@ def test_updater_public_path_resolution_runtime_errors_fail_closed(
         install_dir,
         source_dir,
         None,
-        "EveJS-Launcher-V1.exe",
+        "EveJS-RPG-Launcher.exe",
     ) is False
     assert handoff.cleanup_pending_update(install_dir) is False
 
@@ -915,14 +915,14 @@ def test_update_cleanup_scheduler_catches_a_late_backup_resolution_failure(
     """A path race while serializing the marker must fail closed."""
     from src.updater import handoff
 
-    install_dir = tmp_path / "installed" / "EveJS-Launcher-V1"
+    install_dir = tmp_path / "installed" / "EveJS-RPG-Launcher"
     (install_dir / "_internal").mkdir(parents=True)
     backup_dir = install_dir / ".evejs-launcher-update-backup"
     (backup_dir / "_internal").mkdir(parents=True)
-    (backup_dir / "EveJS-Launcher-V1.exe").write_bytes(b"old launcher")
+    (backup_dir / "EveJS-RPG-Launcher.exe").write_bytes(b"old launcher")
     (backup_dir / "_internal" / "runtime.bin").write_bytes(b"old runtime")
     staging_root = Path(tempfile.mkdtemp(prefix="evejs_launcher_update_"))
-    source_dir = staging_root / "staged" / "EveJS-Launcher-V1"
+    source_dir = staging_root / "staged" / "EveJS-RPG-Launcher"
     source_dir.mkdir(parents=True)
     original_resolve = Path.resolve
     backup_resolve_calls = 0
@@ -946,7 +946,7 @@ def test_update_cleanup_scheduler_catches_a_late_backup_resolution_failure(
             install_dir,
             source_dir,
             backup_dir,
-            "EveJS-Launcher-V1.exe",
+            "EveJS-RPG-Launcher.exe",
         ) is False
         assert backup_resolve_calls == 2
         assert backup_dir.is_dir()
@@ -969,7 +969,7 @@ def test_frozen_launcher_starts_the_deferred_cleanup_in_a_background_thread(
     import main
     from src.updater import handoff
 
-    executable = tmp_path / "EveJS-Launcher-V1" / "EveJS-Launcher-V1.exe"
+    executable = tmp_path / "EveJS-RPG-Launcher" / "EveJS-RPG-Launcher.exe"
     calls: list[Path] = []
 
     class FakeThread:

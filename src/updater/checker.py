@@ -13,6 +13,7 @@ from pathlib import Path
 from PyQt6.QtCore import QThread, pyqtSignal
 
 from src.updater.github import get_latest_release
+from src.rpg import UPDATE_PACKAGE
 
 
 def get_current_version() -> str:
@@ -137,7 +138,7 @@ class UpdateChecker(QThread):
 
         # Releases may also contain source ZIPs. Only the named onedir
         # package contains the executable and runtime required by the updater.
-        package_name = "EveJS-Launcher-V1.zip"
+        package_name = UPDATE_PACKAGE
         download_url = ""
         for asset in release.get("assets", []):
             if asset.get("name", "").casefold() == package_name.casefold():

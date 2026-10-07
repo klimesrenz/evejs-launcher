@@ -82,16 +82,14 @@ def test_explicit_remapped_proxy_populates_every_proxy_variant() -> None:
     assert "launchdarkly.com" in env["EVEJS_DARKLY_BLOCK_HOSTS"]
 
 
-def test_network_policy_preserves_inherited_blocked_hosts(
+def test_network_policy_discards_other_install_blocked_hosts(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("EVEJS_PROXY_BLOCKED_HOSTS", "custom.invalid,.custom.invalid")
 
     env = launcher.build_env("C:/Fixture/EveJS")
 
-    assert env["EVEJS_PROXY_BLOCKED_HOSTS"].startswith(
-        "custom.invalid,.custom.invalid,"
-    )
+    assert "custom.invalid" not in env["EVEJS_PROXY_BLOCKED_HOSTS"]
     assert env["EVEJS_PROXY_BLOCKED_HOSTS"].endswith(
         env["EVEJS_DARKLY_BLOCK_HOSTS"]
     )
@@ -235,12 +233,12 @@ def test_native_context_rejects_invalid_game_ports(game_port: object) -> None:
         ClientLaunchContext.native(game_port=game_port)  # type: ignore[arg-type]
 
 
-def test_native_context_retains_existing_defaults() -> None:
+def test_native_context_uses_rpg_defaults() -> None:
     context = ClientLaunchContext.native()
 
     assert context.game_host == "127.0.0.1"
-    assert context.game_port == 26000
-    assert context.proxy_url == "http://127.0.0.1:26002"
+    assert context.game_port == 27000
+    assert context.proxy_url == "http://127.0.0.1:27002"
     assert context.image_url is None
     assert context.target_identity is None
     assert context.settings_identity is None
@@ -303,8 +301,8 @@ def test_final_client_endpoint_check_is_fail_closed_without_retry() -> None:
             proxy_probe=lambda url: proxy_calls.append(url) or False,
         )
 
-    assert game_calls == [("127.0.0.1", 26000)]
-    assert proxy_calls == ["http://127.0.0.1:26002"]
+    assert game_calls == [("127.0.0.1", 27000)]
+    assert proxy_calls == ["http://127.0.0.1:27002"]
 
 
 @pytest.mark.parametrize("status,expected", [(204, True), (404, False), (503, False)])
@@ -536,7 +534,7 @@ def test_launch_client_resfiles_come_from_configured_client_not_profile_junction
     assert isinstance(env, dict)
     assert env["EO_REMOTEFILECACHEFOLDER"] == str(configured_resfiles)
     assert env["EO_REMOTEFILECACHEFOLDER"] != str(profile_resfiles)
-    assert captured["arguments"] == ("/port:26000",)
+    assert captured["arguments"] == ("/port:27000", "/resfileserver=http://127.0.0.1:27002/resfiles/")
 
 
 def test_launch_client_does_not_inject_dlss5_or_change_inherited_reshade_without_package(
@@ -734,7 +732,8 @@ def test_launch_client_passes_only_verified_typed_auto_login_arguments(
 
     assert result is not None
     assert captured["arguments"] == (
-        "/port:26000",
+        "/port:27000",
+        "/resfileserver=http://127.0.0.1:27002/resfiles/",
         "/noconsole",
         "/login:fixture-account:fixture-dummy",
         "/autoSelectCharacter:90000001",
@@ -822,7 +821,7 @@ def test_launch_client_prepares_selected_root_trust_before_spawn(
 
     assert events[0] == ("trust", str(root), client)
     assert events[1] == ("endpoint-check",)
-    assert events[2] == ("spawn", exe, ("/port:26000",))
+    assert events[2] == ("spawn", exe, ("/port:27000", "/resfileserver=http://127.0.0.1:27002/resfiles/"))
 
 
 def test_launch_client_does_not_spawn_when_certificate_preparation_fails(

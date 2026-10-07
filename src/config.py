@@ -9,18 +9,18 @@ from pathlib import Path
 import tempfile
 
 from .i18n import normalize_language
+from .rpg import APP_NAME, DEFAULT_SERVER, DEFAULT_CLIENT, GAME_PORT, PROXY_URL
 
 log = logging.getLogger(__name__)
 
-APP_NAME = "EveJS-Launcher"
 CONFIG_DIR = Path(os.environ.get("APPDATA", "")) / APP_NAME
 CONFIG_FILE = CONFIG_DIR / "config.json"
 
 DEFAULT_CONFIG = {
-    "evejs_root": "",
-    "client_path": "",
-    "proxy_url": "http://127.0.0.1:26002",
-    "game_port": 26000,
+    "evejs_root": DEFAULT_SERVER,
+    "client_path": DEFAULT_CLIENT,
+    "proxy_url": PROXY_URL,
+    "game_port": GAME_PORT,
     "auto_start_server": False,
     "auto_start_market": False,
     "runtime_backend": "native",
@@ -61,7 +61,7 @@ DEFAULT_CONFIG = {
     "audio_ducking_enabled": True,
     "audio_ducking_level": 100,        # music percent while LYRA speaks
     # ── Auto-update ──────────────────────────────────────────────────────
-    "update_auto_check": True,           # auto-check for updates on startup
+    "update_auto_check": False,           # auto-check for updates on startup
     "update_check_interval_hours": 6,    # hours between background checks
     "update_skip_version": "",           # version string to skip (DEPRECATED - kept for migration)
     "update_skip_versions": [],          # list of version strings the user has skipped

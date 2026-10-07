@@ -1,3 +1,17 @@
+# EveJS RPG Launcher 0.1.0
+
+Отдельная native Windows-сборка для Sandbox RPG beta2 на базе
+[V0nCleef/evejs-launcher 1.0.69](https://github.com/V0nCleef/evejs-launcher).
+Инструкция, ограничения и сборка: [RPG.md](RPG.md).
+
+Настройки: `%APPDATA%\EveJS-RPG-Launcher`. Сервер по умолчанию:
+`C:\projects\EveJS-RPG`, клиент: `C:\CCP\SandboxRPG-3396210\tq`.
+Релизы этой ветки используют собственную версию `0.1.x` и собственный ZIP.
+Ниже сохранена документация исходного лаунчера; её стандартные порты,
+имя EXE и ссылки на обновления относятся к оригинальной версии.
+
+---
+
 # EveJS Launcher
 
 A Windows launcher for your local EveJS server and EVE clients. Start Game and Market, launch characters and groups, manage mods, and open maintenance tools from one place. Choose Native or Docker Compose to match your EveJS installation.

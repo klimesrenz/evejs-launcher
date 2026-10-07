@@ -36,3 +36,6 @@ logs/
 # Environment
 .env
 .env.local
+
+# Isolated RPG build environment
+.venv-rpg/

@@ -9,7 +9,7 @@ Usage::
 
     python update_helper.py --old-exe PATH --new-exe PATH [--restart]
 
-Logs are written to ``%APPDATA%/EveJS-Launcher-V2/logs/updater.log``.
+Logs are written to ``%APPDATA%/EveJS-RPG-Launcher/logs/updater.log``.
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ from pathlib import Path
 
 def _setup_logging() -> logging.Logger:
     """Configure the updater logger to write to the app's log directory."""
-    log_dir = Path(os.environ.get("APPDATA", "")) / "EveJS-Launcher-V2" / "logs"
+    log_dir = Path(os.environ.get("APPDATA", "")) / "EveJS-RPG-Launcher" / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
     log_file = log_dir / "updater.log"
 
@@ -182,7 +182,7 @@ def _show_failure_dialog() -> None:
     message = (
         "EveJS Launcher could not complete the update automatically.\n\n"
         "Please download the latest version manually from:\n"
-        "https://github.com/V0nCleef/evejs-launcher/releases\n\n"
+        "https://github.com/klimesrenz/evejs-launcher/releases\n\n"
         "A copy of the new .exe was saved to your Temp folder."
     )
     try:

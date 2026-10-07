@@ -64,6 +64,7 @@ from .audio.events import (
     service_stop_result_event,
 )
 from .constants import APP_TITLE, Page, Ports
+from .rpg import PROXY_URL
 from .core.client_launch_queue import (
     AsyncClientLaunchQueue,
     ClientWindowReadinessGate,
@@ -4888,8 +4889,7 @@ class MainWindow(QMainWindow):
         self._update_status_bar()
 
     def _is_market_running(self) -> bool:
-        # The actual market server listens on 40110/40111, NOT 26001.
-        # Port 26001 is the game server's own market proxy endpoint.
+        # Probe the RPG market RPC endpoint, independent of the main SSH tunnel.
         if self._market_proc is not None and self._market_proc.poll() is None:
             return True
         # Fallback: check the real market RPC port in case market was
@@ -4963,7 +4963,7 @@ class MainWindow(QMainWindow):
                         proxy_url=str(
                             self._cfg.get(
                                 "proxy_url",
-                                "http://127.0.0.1:26002",
+                                PROXY_URL,
                             )
                         ),
                     ),
@@ -9394,7 +9394,7 @@ class MainWindow(QMainWindow):
             # Non-strict Native runtime probes use the documented default when
             # recovering from an invalid persisted value.
             port_identity = int(Ports.GAME_TCP)
-        raw_proxy = candidate.get("proxy_url", "http://127.0.0.1:26002")
+        raw_proxy = candidate.get("proxy_url", PROXY_URL)
         try:
             proxy_identity: object = validate_proxy_origin(str(raw_proxy))
         except ValueError:
@@ -9416,7 +9416,7 @@ class MainWindow(QMainWindow):
                     label="EveJS game",
                 )
                 validate_proxy_origin(
-                    str(proposed.get("proxy_url", "http://127.0.0.1:26002"))
+                    str(proposed.get("proxy_url", PROXY_URL))
                 )
             except ValueError:
                 return "The Native client endpoints are invalid. Nothing was saved."

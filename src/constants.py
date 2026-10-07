@@ -4,6 +4,9 @@ from __future__ import annotations
 from enum import Enum, IntEnum
 from pathlib import Path
 
+from .rpg import (APP_NAME, APP_TITLE, UPDATE_REPOSITORY, GAME_PORT,
+                  IMAGE_PORT, PROXY_PORT, MARKET_HTTP_PORT, MARKET_RPC_PORT)
+
 # ── Colour palette (EVE-inspired dark theme) ────────────────────────────────
 COLORS: dict[str, str] = {
     "void_black": "#05080D",
@@ -87,24 +90,22 @@ MOTION_DURATIONS_MS: dict[str, int] = {
 }
 
 # ── Application metadata ─────────────────────────────────────────────────────
-APP_NAME: str = "EveJS-Launcher"
-APP_TITLE: str = "EVEJS LAUNCHER V1"
 
 # ── Version ───────────────────────────────────────────────────────────────────
 VERSION_PATH = Path(__file__).resolve().parent.parent / "VERSION"
 APP_VERSION = VERSION_PATH.read_text().strip() if VERSION_PATH.exists() else "0.0.0"
 
 # ── GitHub / auto-update ──────────────────────────────────────────────────────
-GITHUB_REPO = "V0nCleef/evejs-launcher"
+GITHUB_REPO = UPDATE_REPOSITORY
 GITHUB_API_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 
 # ── Network ports ────────────────────────────────────────────────────────────
 class Ports(IntEnum):
-    GAME_TCP = 26000
-    GAME_MARKET_PROXY = 26001
-    CLIENT_HTTP_PROXY = 26002
-    MARKET_HTTP = 40110
-    MARKET_RPC = 40111
+    GAME_TCP = GAME_PORT
+    GAME_MARKET_PROXY = IMAGE_PORT
+    CLIENT_HTTP_PROXY = PROXY_PORT
+    MARKET_HTTP = MARKET_HTTP_PORT
+    MARKET_RPC = MARKET_RPC_PORT
 
 
 # ── Runtime status for accounts / clients ────────────────────────────────────

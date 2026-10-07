@@ -115,6 +115,7 @@ a = Analysis(
         ('assets/*.ico', 'assets'),
         ('CHANGELOG.md', '.'),
         ('README.md', '.'),
+        ('RPG.md', '.'),
         # Package only reviewed public documentation. A wildcard here can
         # silently scoop local investigation notes into a public release.
         *_guide_data,
@@ -193,7 +194,7 @@ exe = EXE(
     a.scripts,
     [],  # No extra binaries — COLLECT handles them below
     exclude_binaries=True,
-    name='EveJS-Launcher-V1',
+    name='EveJS-RPG-Launcher',
     debug=False,
     bootloader_ignore_signals=False,
     strip=True,
@@ -215,5 +216,5 @@ coll = COLLECT(
     strip=False,
     upx=False,
     upx_exclude=[],
-    name='EveJS-Launcher-V1',
+    name='EveJS-RPG-Launcher',
 )
