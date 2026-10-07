@@ -14,7 +14,7 @@ try {
     try {
         $env:APPDATA = Join-Path $root 'build\rpg-check-appdata'
         $env:QT_QPA_PLATFORM = 'offscreen'
-        & $venvPython -m pytest -q tests/test_config.py tests/test_update_asset_selection.py tests/test_launcher.py tests/test_server_launcher.py tests/test_service_lifecycle_worker.py tests/test_native_market_preflight_regressions.py tests/test_native_config_preflight.py tests/test_update_flow.py
+        & $venvPython -m pytest -q tests/test_config.py tests/test_update_asset_selection.py tests/test_launcher.py tests/test_server_launcher.py tests/test_service_lifecycle_worker.py tests/test_native_market_preflight_regressions.py tests/test_native_config_preflight.py tests/test_update_flow.py tests/test_mod_api_runtime_protocol.py tests/test_mod_updates.py
         if ($LASTEXITCODE -ne 0) { throw 'Launcher validation failed; build stopped.' }
     } finally {
         $env:APPDATA = $savedAppData

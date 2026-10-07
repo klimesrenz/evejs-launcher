@@ -36,10 +36,10 @@ def _on_update_available(
 
 def _on_update_clicked(self) -> None:
     """Show the update dialog and handle download/install or skip."""
-    from ..constants import APP_VERSION
+    from ..constants import RPG_VERSION
 
     dlg = UpdateDialog(
-        current_version=APP_VERSION,
+        current_version=RPG_VERSION,
         new_version=self._latest_version,
         changelog=self._latest_changelog,
         download_url=self._latest_download_url,

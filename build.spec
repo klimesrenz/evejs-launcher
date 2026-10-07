@@ -122,6 +122,7 @@ a = Analysis(
         ('LICENSE', '.'),
         ('THIRD_PARTY_NOTICES.md', '.'),
         ('VERSION', '.'),
+        ('RPG_VERSION', '.'),
         ('licenses/*', 'licenses'),
         ('src/core/template_settings/*', 'src/core/template_settings'),
         ('src/core/helpers/*', 'src/core/helpers'),

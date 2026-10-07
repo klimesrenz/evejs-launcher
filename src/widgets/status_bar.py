@@ -25,7 +25,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from src.constants import APP_VERSION, COLORS
+from src.constants import DISPLAY_VERSION, COLORS
 from src.core.service_status import ServiceState
 from src.i18n import (
     LANGUAGES,
@@ -520,7 +520,7 @@ class StatusBar(QFrame):
         )
         layout.addWidget(self.build_label)
 
-        self.version_label = QLabel(f"v{APP_VERSION}")
+        self.version_label = QLabel(f"v{DISPLAY_VERSION}")
         self.version_label.setSizePolicy(
             QSizePolicy.Policy.Minimum,
             QSizePolicy.Policy.Preferred,

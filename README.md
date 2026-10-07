@@ -1,4 +1,4 @@
-# EveJS RPG Launcher 0.1.0
+# EveJS RPG Launcher 0.1.1
 
 Отдельная native Windows-сборка для Sandbox RPG beta2 на базе
 [V0nCleef/evejs-launcher 1.0.69](https://github.com/V0nCleef/evejs-launcher).

@@ -17,16 +17,16 @@ from src.rpg import UPDATE_PACKAGE
 
 
 def get_current_version() -> str:
-    """Return the version string from the VERSION file.
+    """Return the version string from the RPG_VERSION file.
 
-    In frozen (onedir) builds the VERSION file lives inside ``_internal/``
+    In frozen (onedir) builds the RPG_VERSION file lives inside ``_internal/``
     alongside the other bundled data; in source runs it sits at the repo root.
     """
     if getattr(sys, "frozen", False):
-        # Onedir: VERSION is at _internal/VERSION (sys._MEIPASS)
-        version_path = Path(sys._MEIPASS) / "VERSION"
+        # Onedir: RPG_VERSION is at _internal/RPG_VERSION (sys._MEIPASS)
+        version_path = Path(sys._MEIPASS) / "RPG_VERSION"
     else:
-        version_path = Path(__file__).resolve().parent.parent.parent / "VERSION"
+        version_path = Path(__file__).resolve().parent.parent.parent / "RPG_VERSION"
     try:
         return version_path.read_text(encoding="utf-8").strip()
     except (FileNotFoundError, OSError):
@@ -96,7 +96,7 @@ class UpdateChecker(QThread):
 
     @property
     def current_version(self) -> str:
-        """The version string read from the local VERSION file."""
+        """The version string read from the local RPG_VERSION file."""
         return self._current_version
 
     # ------------------------------------------------------------------

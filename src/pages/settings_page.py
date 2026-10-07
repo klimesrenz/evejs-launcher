@@ -44,7 +44,7 @@ log = logging.getLogger(__name__)
 
 
 from src import config
-from src.constants import COLORS, APP_VERSION
+from src.constants import COLORS, DISPLAY_VERSION
 from src.core.client_autologin import (
     inspect_auto_login_capability,
     inspect_client_auto_login_capability,
@@ -446,7 +446,7 @@ class SettingsPage(QWidget):
         updates_form = QFormLayout(updates_box)
         updates_form.setSpacing(10)
 
-        self.version_label = QLabel(f"Version {APP_VERSION}")
+        self.version_label = QLabel(f"Version {DISPLAY_VERSION}")
         self.version_label.setStyleSheet(f"color: {COLORS['grey']}; font-size: 13px;")
         self.version_label.setCursor(Qt.CursorShape.ArrowCursor)
         updates_form.addRow("Current Version:", self.version_label)

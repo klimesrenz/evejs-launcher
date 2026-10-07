@@ -135,8 +135,8 @@ def main() -> int:
     os.environ.clear()
     os.environ.update(clean_environment)
     from src.utils.logger import setup_logger, _LOG_FILE
-    from src.constants import APP_VERSION
-    setup_logger(__name__).info("Launcher startup version=%s log_file=%s", APP_VERSION, _LOG_FILE)
+    from src.constants import DISPLAY_VERSION
+    setup_logger(__name__).info("Launcher startup version=%s log_file=%s", DISPLAY_VERSION, _LOG_FILE)
     handoff = _parse_update_handoff(sys.argv[1:])
     app = QApplication([sys.argv[0]] if handoff is not None else sys.argv)
     app.setApplicationName(APP_NAME)

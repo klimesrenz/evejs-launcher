@@ -94,6 +94,9 @@ MOTION_DURATIONS_MS: dict[str, int] = {
 # ── Version ───────────────────────────────────────────────────────────────────
 VERSION_PATH = Path(__file__).resolve().parent.parent / "VERSION"
 APP_VERSION = VERSION_PATH.read_text().strip() if VERSION_PATH.exists() else "0.0.0"
+RPG_VERSION_PATH = VERSION_PATH.with_name("RPG_VERSION")
+RPG_VERSION = RPG_VERSION_PATH.read_text().strip() if RPG_VERSION_PATH.exists() else "0.0.0"
+DISPLAY_VERSION = f"{APP_VERSION} (RPG {RPG_VERSION})"
 
 # ── GitHub / auto-update ──────────────────────────────────────────────────────
 GITHUB_REPO = UPDATE_REPOSITORY
