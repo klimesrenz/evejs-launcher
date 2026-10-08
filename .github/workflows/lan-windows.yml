@@ -1,0 +1,30 @@
+name: Build LAN Launcher for Windows
+on:
+  workflow_dispatch:
+  push:
+    branches: [lan]
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: |
+            requirements-build.txt
+            requirements-dev.txt
+      - name: Check and build LAN Launcher
+        shell: pwsh
+        run: ./scripts/build-lan.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: EveJS-LAN-Launcher-Windows
+          path: |
+            dist/EveJS-LAN-Launcher.zip
+            dist/EveJS-LAN-Launcher.zip.sha256
+          if-no-files-found: error

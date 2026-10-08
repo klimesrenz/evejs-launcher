@@ -1,0 +1,51 @@
+# EVE.js LAN Launcher 0.1.0
+
+Отдельный Windows-лаунчер основного Linux-сервера 192.168.0.150, без SSH.
+Версия совместимости исходной платформы — 1.0.69; ветка rpg не меняется.
+
+## Первый запуск
+
+1. На Linux установить LinuxNative0.4.0 и выполнить setup-lan.py prepare/install
+   по tools/LinuxNative/LAN-README.md. Мир и моды остаются на Linux.
+2. Перенести созданный LinuxNative-LAN-connection.json на свой Windows-хост.
+   Файл содержит ключ управления, не публиковать. Приватных TLS ключей в нём нет.
+3. Распаковать ВЕСЬ ZIP, запустить EveJS-LAN-Launcher.exe → импорт подключения.
+4. Выбрать tq основного подготовленного offline-клиента3396210, не RPG-копию.
+   Рядом должны находиться полный ResFiles и index_tranquility.txt.
+5. Закрыть все EVE-клиенты → Подготовить LAN-клиент. Изменяется server в start.ini,
+   добавляется игровой публичный CA в bundles и Windows CurrentUser trust.
+   Исходные файлы сохраняются в tq/.evejs-lan-backup; другие CA не удаляются.
+6. Запустить сервер, дождаться Game/Market «работает», запустить клиент.
+   Аккаунт вводится в игре. Для нескольких клиентов создать отдельные профили.
+
+Лаунчер хранит настройки в %APPDATA%/EveJS-LAN-Launcher. Профили обычного/RPG
+лаунчеров автоматически не переносятся. Закрытие окна не выключает Linux-сервер.
+AutoMining login-v1 сохраняет текущие игровые настройки (apply:false).
+Удалённое управление модами и автоматический вход в аккаунты не входят в0.1.0.
+
+Если Windows Firewall имеет полный outbound block для этого exefile.exe,
+он блокирует и LAN; отдельное allow правило его не перекрывает. Нужно проверить
+область именно этого старого правила. Лаунчер firewall не отключает/не меняет.
+Game26000, image26001, proxy26002, HTTPS26003, чат5222, API26080 (TCP).
+Market/monitor наружу не открываются. API использует token+закреплённый TLS.
+
+## Откат
+
+Закрыть клиенты → Откатить подготовку. Файлы, изменённые после LAN-подготовки,
+автоматически не перезаписываются. Публичный CA остаётся в Windows trust.
+На Linux выполнить python3 tools/LinuxNative/setup-lan.py restore при наличии
+подготовленного backup; возвращается прежний сетевой режим, не старые базы.
+
+## Сборка
+
+Build-LAN.cmd, Windows Python3.12; отдельная .venv-lan. Результат:
+dist/EveJS-LAN-Launcher.zip и .sha256. Workflow lan-windows.yml срабатывает
+только на ветке lan или вручную. Он создаёт artifact, не публикует release.
+RPG main.py/build.spec не используются LAN-сборкой. Автообновления LAN нет.
+
+## Проверки
+
+См. VALIDATION-LAN.md. До Windows Actions проверены Linux HTTPS/fixtures и
+Qt offscreen. Полный Windows trust/junction/EVE runtime и Manjaro reboot
+не доступны в агентской среде. Первый выпуск требует игровой приёмки;
+переход на LAN не является исправлением лагов симуляции.
