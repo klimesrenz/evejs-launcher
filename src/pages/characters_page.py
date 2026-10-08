@@ -167,8 +167,9 @@ class CharactersPage(QWidget):
     manage_groups_requested = pyqtSignal(object)  # optional focused character ID
     portrait_loads_idle = pyqtSignal()
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(self, parent: QWidget | None = None, *, portrait_loader_factory=None) -> None:
         super().__init__(parent)
+        self._portrait_loader_factory = portrait_loader_factory
 
         # Keyed by (username, char_id) — survives re-sorting and filtering.
         self._cards: dict[tuple[str, int], CharacterCard] = {}
@@ -779,7 +780,7 @@ class CharactersPage(QWidget):
             return
 
         thread = QThread(self)
-        loader = PortraitLoader(target, request)
+        loader = (self._portrait_loader_factory or PortraitLoader)(target, request)
         loader.moveToThread(thread)
         thread.started.connect(loader.run)
         loader.loaded.connect(self._on_portrait_loaded)

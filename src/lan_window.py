@@ -5,6 +5,7 @@ from pathlib import Path
 import re
 import uuid
 import threading
+import time
 
 from PyQt6.QtCore import QThread, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
@@ -16,6 +17,10 @@ from .core.lan_api import Client, Connection, LANError
 from .core import lan_client
 from .core.process_tracker import ProcessTracker
 from .lan_presentation import Presentation
+from .core.lan_characters import parse_roster, account_profile
+from .core.client_autologin import AutoLoginLaunch
+from .core.runtime.portraits import PortraitTarget
+from .core.runtime.endpoints import Endpoint
 
 
 class Worker(QThread):
@@ -43,6 +48,14 @@ class Window(Presentation, QMainWindow):
         self.tracker = ProcessTracker()
         self.batch_active = False
         self.cancel_batch = threading.Event()
+        self.accounts = []
+        self.roster_ready = False
+        self.login_capability = {'supported': False, 'reason': 'Обновите список персонажей.'}
+        self.last_roster_fetch = 0
+        self.settings.setdefault('selected_characters', {})
+        self.settings.setdefault('hidden_characters', [])
+        if not isinstance(self.settings['selected_characters'], dict) or not isinstance(self.settings['hidden_characters'], list):
+            raise ValueError('Повреждён сохранённый выбор персонажей LAN.')
         self.build_ui()
         path=CONFIG_DIR/'connection.json'
         if path.exists():
@@ -76,6 +89,7 @@ class Window(Presentation, QMainWindow):
         self.note.setText(message)
         self.state.setText('Ответ не подтверждён; состояние сервера неизвестно')
         self.last_status = None
+        self.roster_ready = False
         self.sync_view()
 
     def confirm(self, title, message):
@@ -86,7 +100,7 @@ class Window(Presentation, QMainWindow):
             self.timer.start(5000)
 
     def import_connection(self):
-        if self.worker or self.settings.get('pending_job'):return
+        if self.worker or self.settings.get('pending_job') or self.tracker.running_count:return
         self.timer.stop()
         try:name,_=QFileDialog.getOpenFileName(self,'Файл подключения LinuxNative','','JSON (*.json)')
         finally:self.timer.start(5000)
@@ -96,7 +110,15 @@ class Window(Presentation, QMainWindow):
             raw=json.dumps(dict(schema=1,**vars(connection))).encode()
             CONFIG_DIR.mkdir(parents=True,exist_ok=True)
             temporary=CONFIG_DIR/'connection.tmp';temporary.write_bytes(raw);temporary.replace(CONFIG_DIR/'connection.json')
+            old_identity = (self.connection.host, self.connection.certificate_sha256) if self.connection else None
             self.connection=connection;self.last_status=None
+            self.last_roster_fetch=0;self.roster_ready=False
+            if old_identity != (connection.host, connection.certificate_sha256):
+                self.accounts=[]
+                self.settings['selected_characters']={}
+                self.settings['hidden_characters']=[]
+                self._characters_page.invalidate_portrait_target()
+                self._characters_page.refresh([],[],self.tracker)
             self.settings['pending_job']='';save_settings(self.settings)
             self.address.setText(f'Linux: {connection.host}:26080 · HTTPS')
             self.refresh()
@@ -108,9 +130,15 @@ class Window(Presentation, QMainWindow):
         if not self.connection:return
         connection=self.connection
         job=self.settings.get('pending_job','')
+        fetch_roster=time.monotonic()-self.last_roster_fetch>=15
         def fetch():
             api=Client(connection)
             status=api.status()
+            if fetch_roster:
+                try:status['roster']=api.characters()
+                except LANError as error:
+                    status['roster_error']='Обновите LinuxNative до 0.5.0 для списка персонажей.' if error.status==404 else str(error)
+
             if job:
                 try:status['requested_job']=api.job(job)
                 except LANError as error:
@@ -121,6 +149,25 @@ class Window(Presentation, QMainWindow):
 
     def show_status(self,status):
         self.last_status=status
+        if 'roster' in status:
+            self.last_roster_fetch=time.monotonic()
+            try:
+                self.accounts,self.login_capability=parse_roster(status['roster'])
+                self.roster_ready=True
+                target=PortraitTarget(
+                    target_identity='lan:'+self.connection.host+':'+self.connection.certificate_sha256,
+                    image_endpoint=Endpoint('image',self.connection.host,26001,26001,'tcp'))
+                self._characters_page.set_data_error('')
+                self._characters_page.refresh(self.accounts,self.settings['hidden_characters'],self.tracker,portrait_target=target)
+                self._characters_page.page_header.set_subtitle(
+                    'Выбор запоминается для аккаунта; по умолчанию — первый видимый персонаж. Наведите на «Запустить выбранных» для списка.'
+                    if self.login_capability['supported'] else self.login_capability['reason']+' Ручной вход — в Настройках.')
+            except LANError as error:
+                self.roster_ready=False
+                self._characters_page.set_data_error(str(error))
+        elif 'roster_error' in status:
+            self.last_roster_fetch=time.monotonic();self.roster_ready=False
+            self._characters_page.set_data_error(status['roster_error'])
         names={'running':'работает','stopped':'остановлен','starting':'запускается','external':'внешний процесс','stale':'остались дочерние процессы'}
         self.state.setText(' · '.join(name.upper()+': '+names.get(value['state'],value['state']) for name,value in status['services'].items()))
         job=status.get('requested_job') or status.get('jobs',{}).get('active')
@@ -200,38 +247,98 @@ class Window(Presentation, QMainWindow):
 
     def launch_profile(self, profile):
         if not self.connection or self.worker:return
-        if self.tracker.is_account_running(profile):
+        if self.tracker.is_account_running('profile:'+profile):
             self.note.setText('Этот профиль уже запущен.');return
         self.persist_client_path()
         path=self.client_path.text().strip();connection=self.connection
         def done(process):
-            self.tracker.add(profile, profile, process)
+            self.tracker.add('profile:'+profile, profile, process)
             self.note.setText(f'Клиент запущен: {profile}, PID {process.pid}. Вход в аккаунт — в игре.')
         self.run_work(lambda:lan_client.launch_process(path,profile,connection),done)
 
+    def refresh_characters(self):
+        self.last_roster_fetch=0
+        self.refresh()
+
+    def selected_launches(self):
+        selected=self.settings.get('selected_characters',{})
+        hidden=set(self.settings.get('hidden_characters',[]))
+        result=[]
+        for account in self.accounts:
+            if account.banned or self.tracker.is_account_running(account.username):continue
+            choices=[c for c in account.characters if c.name not in hidden]
+            if not choices:continue
+            character=next((c for c in choices if c.char_id==selected.get(account.username)),choices[0])
+            result.append((account.username,character.name,character.char_id,account.account_id))
+        return result
+
+    def select_character(self,username,name,character_id):
+        self.settings['selected_characters'][username]=character_id
+        save_settings(self.settings)
+        self.note.setText(f'Для аккаунта {username} выбран {name}. Общий запуск использует этот выбор.')
+        self.sync_view()
+
+    def launch_character(self,username,name,character_id):
+        if self.worker or not self.connection:return
+        if not self.roster_ready or not self.login_capability.get('supported'):
+            self.note.setText(self.login_capability.get('reason','Обновите список.'));return
+        if self.tracker.is_account_running(username):
+            self.note.setText('Клиент этого аккаунта уже запущен.');return
+        found=next(((a,c) for a in self.accounts if a.username==username and not a.banned
+                    for c in a.characters if c.char_id==character_id),None)
+        if not found:
+            self.note.setText('Персонаж отсутствует в актуальном списке. Обновите список.');return
+        account,character=found
+        self.select_character(username,character.name,character_id)
+        self.launch_character_batch([(username,character.name,character_id,account.account_id)])
+
     def launch_all(self):
-        if not self.connection or self.worker:return
-        profiles=[p for p in self.settings['profiles'] if not self.tracker.is_account_running(p)]
-        if not profiles:return
+        if self.worker or not self.connection or not self.roster_ready or not self.login_capability.get('supported'):return
+        self.launch_character_batch(self.selected_launches())
+
+    def launch_character_batch(self,characters):
+        if not characters:return
         self.persist_client_path()
         path=self.client_path.text().strip();connection=self.connection
         self.cancel_batch.clear();self.batch_active=True
-        self._home_page.set_launch_progress(0,len(profiles),0)
+        for username,name,_,_ in characters:self._characters_page.set_account_launching(username,name,True)
+        self._home_page.set_launch_progress(0,len(characters),0)
+        self._characters_page.set_group_launch_progress(0,len(characters),0)
         def launch():
             started=[];error=''
-            for profile in profiles:
+            for username,name,identity,account_id in characters:
                 if self.cancel_batch.is_set():break
-                try:started.append((profile,lan_client.launch_process(path,profile,connection)))
+                try:
+                    profile=account_profile(connection,account_id)
+                    process=lan_client.launch_process(path,profile,connection,intent=AutoLoginLaunch(username,identity))
+                    started.append((username,name,process))
                 except Exception as exc:
                     error=str(exc);break
             return started,error
         def done(result):
             started,error=result
-            for profile,process in started:self.tracker.add(profile,profile,process)
+            for username,name,process in started:self.tracker.add(username,name,process)
+            for username,name,_,_ in characters:self._characters_page.set_account_launching(username,name,False)
             self.batch_active=False
             self._home_page.finish_launch_progress(len(started),len(started),self.cancel_batch.is_set())
-            self.note.setText(f'Запущено профилей: {len(started)} из {len(profiles)}.' + (' '+error if error else ''))
+            self._characters_page.finish_group_launch_progress()
+            self.note.setText(f'Запущено клиентов: {len(started)} из {len(characters)}.' + (' '+error if error else ''))
         self.run_work(launch,done)
+
+    def hide_character(self,name):
+        if name not in self.settings['hidden_characters']:
+            self.settings['hidden_characters'].append(name);save_settings(self.settings)
+        self._characters_page.refresh(self.accounts,self.settings['hidden_characters'],self.tracker,
+                                      portrait_target=self._characters_page._portrait_target)
+        self.sync_view()
+
+    def unhide_characters(self):
+        self.settings['hidden_characters']=[];save_settings(self.settings)
+        self._characters_page.refresh(self.accounts,[],self.tracker,portrait_target=self._characters_page._portrait_target)
+        self.sync_view()
+
+    def unavailable_roster_action(self,*args):
+        self.note.setText('Создание, удаление и группы не входят в LAN-управление. Выбор и запуск доступны на карточке.')
 
     def cancel_launches(self):
         self.cancel_batch.set()
@@ -247,11 +354,18 @@ class Window(Presentation, QMainWindow):
         QMessageBox.information(self,'LAN '+LAN_VERSION,
             'Возвращены оформление, навигация и главная страница исходного лаунчера.\n'
             'Управление Linux, журналы, клиентские профили и подготовка доступны через LAN.\n'
-            'Список персонажей, авто-вход и управление модами через API пока недоступны.')
+            'Доступны карточки персонажей Linux, штатный вход и очередь запуска аккаунтов.\n'
+            'Управление модами выполняется через LinuxNative.')
 
     def closeEvent(self,event):
         if self.worker is not None:
             self.note.setText('Дождитесь завершения текущего запроса перед закрытием.');event.ignore()
+        elif self._characters_page.portrait_loads_active():
+            self.timer.stop()
+            self._characters_page.cancel_portrait_loads()
+            self.note.setText('Завершается загрузка портретов…')
+            event.ignore()
+            QTimer.singleShot(100,self.close)
         else:
             self.timer.stop()
             event.accept()

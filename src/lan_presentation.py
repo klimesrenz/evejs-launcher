@@ -13,6 +13,8 @@ from .core.service_status import RuntimeSnapshot, ServiceState
 from .i18n import set_language
 from .lan import LAN_VERSION, VERSION
 from .pages.home_page import HomePage
+from .pages.characters_page import CharactersPage
+from .core.lan_characters import portrait_loader_factory
 from .widgets.nav_panel import NavPanel
 from .widgets.page_header import PageHeader
 from .widgets.status_bar import StatusBar
@@ -115,44 +117,27 @@ class Presentation:
         return label
 
     def _build_profiles_page(self):
-        self._characters_page, layout = self.page(
-            'Персонажи', 'Профили основного клиента. Вход в аккаунт выполняется в игре.')
-        self.paragraph('Список персонажей Linux пока не передаётся через API. '
-                       'Здесь показаны ваши клиентские профили; данные мира остаются на сервере.', layout)
-        row = QHBoxLayout()
-        self.profiles = QComboBox()
-        self.profiles.addItems(self.settings.get('profiles', ['Main']))
-        row.addWidget(self.profiles, 1)
-        self.button('Добавить профиль', self.add_profile, row)
-        self.profile_launch = self.button('Запустить клиент', self.launch_client, row, primary=True)
-        layout.addLayout(row)
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        holder = QWidget()
-        self.profile_grid = QGridLayout(holder)
-        self.profile_grid.setAlignment(Qt.AlignmentFlag.AlignTop)
-        scroll.setWidget(holder)
-        layout.addWidget(scroll, 1)
-        self.rebuild_profiles()
+        self._characters_page = CharactersPage(portrait_loader_factory=portrait_loader_factory())
+        self._stack.addWidget(self._characters_page)
+        self._characters_page.set_character_creation_available(False, 'Создание персонажей — в игре.')
+        self._characters_page.group_combo.hide()
+        self._characters_page.manage_groups_button.hide()
+        self._characters_page.launch_character.connect(self.launch_character)
+        self._characters_page.character_selected.connect(self.select_character)
+        self._characters_page.launch_group_requested.connect(self.launch_all)
+        self._characters_page.cancel_group_launches_requested.connect(self.cancel_launches)
+        self._characters_page.hide_character.connect(self.hide_character)
+        self._characters_page.delete_character_requested.connect(self.unavailable_roster_action)
+        self._characters_page.delete_account_requested.connect(self.unavailable_roster_action)
+        self._characters_page.manage_groups_requested.connect(self.unavailable_roster_action)
+        self._characters_page.set_data_error('Список загружается с Linux. Подключение задаётся в Настройках.')
+        refresh = QPushButton('Обновить список')
+        refresh.clicked.connect(self.refresh_characters)
+        self._characters_page.page_header.add_action(refresh)
 
     def rebuild_profiles(self):
-        while self.profile_grid.count():
-            widget = self.profile_grid.takeAt(0).widget()
-            if widget:
-                widget.deleteLater()
-        for index, profile in enumerate(self.settings['profiles']):
-            card = QFrame()
-            card.setProperty('class', 'card')
-            box = QVBoxLayout(card)
-            box.setContentsMargins(20, 20, 20, 20)
-            title = QLabel(profile)
-            title.setProperty('class', 'sectionTitle')
-            box.addWidget(title)
-            running = self.tracker.is_account_running(profile)
-            self.paragraph('Клиент запущен' if running else 'Готов к запуску', box)
-            self.button('Запустить', lambda _, p=profile: self.launch_profile(p), box,
-                        primary=True).setEnabled(not running and self.worker is None and self.connection is not None)
-            self.profile_grid.addWidget(card, index // 3, index % 3)
+        if hasattr(self, '_characters_page'):
+            self._characters_page.refresh_process_states()
 
     def _build_mods_page(self):
         self._mods_page, layout = self.page('Моды', 'Моды основного мира загружает LinuxNative.')
@@ -211,6 +196,15 @@ class Presentation:
                        'а не Sandbox RPG. Файлы до подготовки сохраняются для отката.', layout)
         self.paragraph('Профили и настройки: %APPDATA%\\EveJS-LAN-Launcher. '
                        'Сохранённые настройки версии 0.1.0 подхватываются автоматически.', layout)
+        self.paragraph('Ручной вход (резервный запуск клиента)', layout)
+        row = QHBoxLayout()
+        self.profiles = QComboBox()
+        self.profiles.addItems(self.settings.get('profiles', ['Main']))
+        row.addWidget(self.profiles)
+        self.button('Добавить профиль', self.add_profile, row)
+        self.profile_launch = self.button('Открыть вход в игру', self.launch_client, row)
+        self.button('Показать скрытых персонажей', self.unhide_characters, row)
+        layout.addLayout(row)
         layout.addStretch()
 
     def switch_page(self, index):
@@ -259,15 +253,25 @@ class Presentation:
             self._home_page.overall_status_label.setText('НЕТ ПОДКЛЮЧЕНИЯ')
             self._home_page.overall_detail_label.setText('Импортируйте файл подключения в настройках.')
         available = enabled and running
-        ready = sum(not self.tracker.is_account_running(p) for p in self.settings['profiles'])
-        self._home_page.set_launch_available(available and ready > 0, 'Сначала подключитесь и запустите сервер.', ready_count=ready)
+        launches = self.selected_launches()
+        ready = len(launches)
+        auto_available = available and self.roster_ready and self.login_capability.get('supported') is True
+        self._home_page.set_launch_available(auto_available and ready > 0, self.login_capability.get('reason', 'Обновите список персонажей.'), ready_count=ready)
+        self._characters_page.set_launch_available(auto_available, self.login_capability.get('reason', 'Обновите список.'))
+        self._characters_page.set_group_launch_available(auto_available and ready > 0, ready_count=ready)
+        self._home_page.set_character_stats(len(self.accounts), sum(len(a.characters) for a in self.accounts))
         if not self.batch_active:
-            self._home_page.btn_launch_all.setText('Запустить профили')
+            self._home_page.btn_launch_all.setText('Запустить выбранных')
+            self._characters_page.launch_group_button.setText('Запустить выбранных')
+        preview = 'Очередь запуска:\n' + '\n'.join(f'{item[0]}: {item[1]}' for item in launches) if launches else 'Нет доступных персонажей для запуска.'
+        if self.batch_active:preview = 'Отменить оставшуюся очередь запуска.'
+        self._home_page.btn_launch_all.setToolTip(preview)
+        self._characters_page.launch_group_button.setToolTip(preview)
         self.profile_launch.setEnabled(available)
         for button in (self._nav.btn_kill_all, self._home_page.btn_kill_all):
             button.setEnabled(snapshot.running_clients > 0 and not busy)
             button.setToolTip('Закрыть только клиенты, запущенные этим окном LAN-лаунчера.')
         self._nav.set_badge_count(int(Page.CHARACTERS), snapshot.running_clients)
-        self.import_button.setEnabled(not busy and not pending)
+        self.import_button.setEnabled(not busy and not pending and snapshot.running_clients == 0)
         self.prepare_button.setEnabled(bool(self.connection) and not busy)
         self.restore_button.setEnabled(not busy)

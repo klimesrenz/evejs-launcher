@@ -171,13 +171,13 @@ def launch(client_path, profile, connection):
     return f'Клиент запущен: профиль {profile}, PID {process.pid}. Вход в аккаунт выполняется в игре.'
 
 
-def launch_process(client_path, profile, connection):
+def launch_process(client_path, profile, connection, *, intent=None):
     from .platform import serialize_evejs_client_trust_and_spawn
     with serialize_evejs_client_trust_and_spawn():
-        return _launch(client_path, profile, connection)
+        return _launch(client_path, profile, connection, intent=intent)
 
 
-def _launch(client_path, profile, connection):
+def _launch(client_path, profile, connection, *, intent=None):
     if not re.fullmatch(r'[A-Za-z0-9_-]{1,40}', profile):
         raise LANError('Имя профиля: 1–40 английских букв, цифр, _ или -.')
     status = Client(connection).status()
@@ -197,6 +197,12 @@ def _launch(client_path, profile, connection):
     from .profiles import _ensure_profile_junction
     from .launcher import _resolve_client_resource_cache, _apply_legacy_identity_compatibility
     from .platform import get_client_exe_path, launch_eve_client, serialize_evejs_client_trust_and_spawn
+    arguments = ('/port:26000', f'/resfileserver=http://{connection.host}:26002/resfiles/')
+    if intent is not None:
+        from .lan_characters import account_profile, login_arguments
+        permit = Client(connection).launch_check(intent.username, intent.character_id)
+        arguments += login_arguments(client, connection, intent, permit)
+        profile = account_profile(connection, permit['account_id'])
     directory = CONFIG_DIR / 'Profiles' / profile
     directory.mkdir(parents=True, exist_ok=True)
     junction = directory / 'tq'
@@ -222,5 +228,5 @@ def _launch(client_path, profile, connection):
     _apply_legacy_identity_compatibility(env)
     with serialize_evejs_client_trust_and_spawn():
         process = launch_eve_client(exe, env, exe.parent,
-            arguments=('/port:26000', f'/resfileserver={proxy}/resfiles/'))
+            arguments=arguments)
     return process

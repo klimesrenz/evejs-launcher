@@ -9,8 +9,9 @@ assert (folder/'EveJS-LAN-Launcher.exe').is_file()
 assert (folder/'_internal/src/core/lan_trust.ps1').is_file()
 assert (folder/'_internal/assets/deep_signal/operations_orbital.png').is_file()
 assert (folder/'_internal/assets/logo.png').is_file()
+assert (folder/'_internal/assets/data/character_names.json').is_file()
 revision=subprocess.check_output(['git','rev-parse','HEAD'],cwd=root,text=True).strip()
-(folder/'BUILD.json').write_text(json.dumps({'version':'0.1.1','compatibility_version':'1.0.69','source_commit':revision},indent=2))
+(folder/'BUILD.json').write_text(json.dumps({'version':'0.2.0','compatibility_version':'1.0.69','source_commit':revision},indent=2))
 archive=root/'dist/EveJS-LAN-Launcher.zip'
 with zipfile.ZipFile(archive,'w',zipfile.ZIP_DEFLATED) as output:
     for path in sorted(folder.rglob('*')):

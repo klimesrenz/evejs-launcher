@@ -145,6 +145,12 @@ class Client:
         self._uuid(identity)
         return self._request('GET', '/v1/jobs/' + identity)
 
+    def characters(self):
+        return self._request('GET', '/v1/characters')
+
+    def launch_check(self, username, character_id):
+        return self._request('POST', '/v1/launch-check', {'username': username, 'character_id': character_id})
+
     @staticmethod
     def _uuid(identity):
         try:

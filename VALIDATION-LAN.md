@@ -1,3 +1,53 @@
+# LinuxNative0.5.0 / LAN Launcher0.2.0 — персонажи, 08.10.2026
+
+Локальная проверка завершена; Windows EXE/реальный вход EVE ожидаются.
+Основа: LinuxNative028639b92, launcher fdd669c, native3deb099c1/package0.12.6.
+Серверный source policy опирается на присланный runtime0.12.9, а не local package.
+
+- Read-only SQLite: аккаунты/персонажи, текущий wallet balance, принадлежность,
+  запрет banned/неверных ID, отсутствие паролей/хешей в ответе, неизменный SHA базы.
+  Согласованный snapshot, ограничение количества/длины/размера/времени запроса.
+- На настоящем временном Node-процессе проверены ownership и конфигурация через
+  фактический config entrypoint/manager; override окружением, выключенный bypass,
+  изменение server.json после старта и неизвестные исходники дают отказ.
+  Недостающие schema dependencies и config/index.js fixture взяты из изученного
+  rrfarmer/main7603a2966; пользовательский index.js не предоставлен. Его отличие
+  заблокирует автологин, не ручной запуск. Никаких автоматических config changes.
+- Настоящий HTTPS API/SQLite: список и launch-check, неверный token/владелец,
+  pin до Authorization; повторены jobs/dedup/busy/persistence/limits/idle TLS.
+  Capability в HTTP fixture заменена; отдельно проверена настоящим Node выше.
+- Qt offscreen: настоящие CharactersPage, выбор и отдельные account profiles,
+  запрет второго клиента аккаунта, banned/hidden, возвращение скрытых,
+  отсутствие связи, частичная ошибка batch с сохранением первого процесса.
+  Процессы настоящие временные Python; Win32/EVE spawn заменены fixture.
+- Настоящий HTTP JPEG: декодирование/кеш в LAN APPDATA, безопасное закрытие
+  окна при работающем portrait QThread, отсутствие создания RPG APPDATA.
+  Ленивый импорт server workers сохраняет публичный API основного/RPG launcher.
+- Launch orchestration: fresh launch-check, точные /login и /autoSelectCharacter,
+  LAN port/resfiles, стабильный account profile, отказ без spawn и прежний
+  ручной путь. Trust/junction/spawn/client fingerprints в этом сценарии mocked;
+  штатные fingerprint fixtures проверены существующим test_client_autologin.
+- 108 существующих тестов config, home actions/layout, nav, theme, tracker,
+  client_autologin, characters layout, portrait HTTP и display values прошли.
+  Linux Qt использует временные Win32 import stubs; Windows build выполняет
+  дополнительные прежние launcher/profiles suites без этих заглушек.
+- Независимые ревью: исправлены проверка настоящего config entrypoint и границы
+  SQL-проекции; открытых подтверждённых P1/P2 нет. Финальный review lazy imports,
+  упаковки и очереди существенных регрессий не выявил.
+
+Новых репозиторных тестов нет. Временные сценарии сохранены в основном checkout:
+_local/artifacts/LinuxNative-LAN-characters-development-20261008.
+Упаковка включает assets/data/character_names.json; версия LAN0.2.0 независима
+от platform1.0.69. API/world/ключи/моды остаются на Linux; обновлять только tools.
+
+Непроверенное: Windows build нового выпуска, настоящий EVE login/портреты,
+ручная приёмка всех11клиентов и соседнего RPG. Source guard может потребовать
+отдельного разбора пользовательского config/index.js. Ранее появившееся
+минутное Checking status после рестарта пользователю воспроизвести не удалось;
+этот выпуск не заявляет его исправление или исправление тормозов симуляции.
+
+---
+
 # Проверки LAN Launcher 0.1.1 — восстановление интерфейса
 
 2026-10-08. Основа: launcher lan/11c0a10, платформа 1.0.69, отдельная версия

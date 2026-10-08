@@ -13,9 +13,9 @@ try {
     try {
         $env:APPDATA = Join-Path $root 'build\lan-check-appdata'
         $env:QT_QPA_PLATFORM = 'offscreen'
-        & $py -m compileall -q lan_main.py src/lan.py src/lan_window.py src/lan_presentation.py src/core/lan_api.py src/core/lan_client.py
+        & $py -m compileall -q lan_main.py src/lan.py src/lan_window.py src/lan_presentation.py src/core/lan_api.py src/core/lan_client.py src/core/lan_characters.py
         if ($LASTEXITCODE -ne 0) { throw 'LAN syntax check failed.' }
-        & $py -m pytest -q tests/test_config.py tests/test_launcher.py tests/test_profiles.py tests/test_home_actions.py tests/test_home_layout.py tests/test_nav_panel.py tests/test_theme_contract.py tests/test_process_tracker_observability.py
+        & $py -m pytest -q tests/test_config.py tests/test_launcher.py tests/test_profiles.py tests/test_home_actions.py tests/test_home_layout.py tests/test_nav_panel.py tests/test_theme_contract.py tests/test_process_tracker_observability.py tests/test_client_autologin.py tests/test_characters_deep_signal_layout.py tests/test_portrait_http.py tests/test_character_display_values.py
         if ($LASTEXITCODE -ne 0) { throw 'Existing launcher checks failed.' }
         & $py -c "from PyQt6.QtWidgets import QApplication; from src.lan_window import Window; a=QApplication([]); w=Window(); w.show(); a.processEvents(); w.close()"
         if ($LASTEXITCODE -ne 0) { throw 'LAN UI check failed.' }
@@ -23,7 +23,7 @@ try {
         $env:APPDATA = $savedAppData
         $env:QT_QPA_PLATFORM = $savedQt
     }
-    & $py -m PyInstaller --clean --noconfirm --onedir --windowed --name EveJS-LAN-Launcher --icon assets/logo.ico --add-data 'src/core/lan_trust.ps1;src/core' --add-data 'assets/deep_signal;assets/deep_signal' --add-data 'assets/logo.png;assets' --add-data 'VERSION;.' lan_main.py
+    & $py -m PyInstaller --clean --noconfirm --onedir --windowed --name EveJS-LAN-Launcher --icon assets/logo.ico --add-data 'src/core/lan_trust.ps1;src/core' --add-data 'assets/deep_signal;assets/deep_signal' --add-data 'assets/logo.png;assets' --add-data 'VERSION;.' --add-data 'assets/data/character_names.json;assets/data' lan_main.py
     if ($LASTEXITCODE -ne 0) { throw 'PyInstaller failed.' }
     Copy-Item LAN.md dist/EveJS-LAN-Launcher/README-LAN.md
     Copy-Item LICENSE dist/EveJS-LAN-Launcher/LICENSE
