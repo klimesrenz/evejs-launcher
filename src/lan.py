@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 
 VERSION = '1.0.69'
-LAN_VERSION = '0.1.0'
+LAN_VERSION = '0.1.1'
 APP_NAME = 'EveJS-LAN-Launcher'
 CONFIG_DIR = Path(os.environ.get('APPDATA') or Path.home() / '.config') / APP_NAME
 

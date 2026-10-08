@@ -4,15 +4,18 @@ import json
 from pathlib import Path
 import re
 import uuid
+import threading
 
 from PyQt6.QtCore import QThread, QTimer, pyqtSignal
-from PyQt6.QtWidgets import (QApplication, QComboBox, QFileDialog, QHBoxLayout, QInputDialog,
-    QLabel, QLineEdit, QMainWindow, QMessageBox, QPlainTextEdit, QPushButton, QTabWidget,
-    QVBoxLayout, QWidget)
+from PyQt6.QtWidgets import (
+    QFileDialog, QInputDialog, QMainWindow, QMessageBox,
+)
 
-from .lan import CONFIG_DIR, LAN_VERSION, VERSION, load_settings, save_settings
+from .lan import CONFIG_DIR, LAN_VERSION, load_settings, save_settings
 from .core.lan_api import Client, Connection, LANError
 from .core import lan_client
+from .core.process_tracker import ProcessTracker
+from .lan_presentation import Presentation
 
 
 class Worker(QThread):
@@ -30,57 +33,17 @@ class Worker(QThread):
             self.error.emit(str(error))
 
 
-class Window(QMainWindow):
+class Window(Presentation, QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle(f'EVE.js LAN Launcher {LAN_VERSION} — API {VERSION}')
-        self.resize(900, 650)
         self.settings = load_settings()
         self.connection = None
         self.worker = None
-        self.current_action = None
         self.last_status = None
-        central = QWidget();self.setCentralWidget(central)
-        layout = QVBoxLayout(central)
-        header = QLabel('ОСНОВНОЙ СЕРВЕР · LINUX LAN')
-        header.setStyleSheet('font-size:22px; font-weight:600; color:#63d5bf; padding:12px 0;')
-        layout.addWidget(header)
-        self.address = QLabel('Импортируйте файл подключения, созданный на Linux.')
-        layout.addWidget(self.address)
-        buttons = QHBoxLayout();layout.addLayout(buttons)
-        for text, callback in (('Импорт подключения',self.import_connection),('Обновить статус',self.refresh)):
-            button=QPushButton(text);button.clicked.connect(callback);buttons.addWidget(button)
-        self.state = QLabel('Состояние сервера неизвестно');layout.addWidget(self.state)
-        controls = QHBoxLayout();layout.addLayout(controls)
-        self.controls=[]
-        for text,action in (('Запустить сервер','start'),('Остановить сервер','stop'),('Остановить Game','stop-game'),('Запустить Game','start-game')):
-            button=QPushButton(text);button.clicked.connect(lambda _,a=action:self.action(a));controls.addWidget(button);self.controls.append(button)
-        self.note = QLabel('Закрытие лаунчера оставляет сервер работающим.');self.note.setWordWrap(True);layout.addWidget(self.note)
-        tabs=QTabWidget();layout.addWidget(tabs)
-        client_tab=QWidget();client_layout=QVBoxLayout(client_tab);tabs.addTab(client_tab,'Клиенты')
-        row=QHBoxLayout();client_layout.addLayout(row)
-        self.client_path=QLineEdit(str(self.settings.get('client_path','')));self.client_path.setPlaceholderText('Папка tq основного offline-клиента')
-        row.addWidget(self.client_path);browse=QPushButton('Выбрать tq');browse.clicked.connect(self.browse_client);row.addWidget(browse)
-        self.client_path.editingFinished.connect(self.persist_client_path)
-        row=QHBoxLayout();client_layout.addLayout(row)
-        prep=QPushButton('Подготовить LAN-клиент');prep.clicked.connect(self.prepare_client);row.addWidget(prep)
-        undo=QPushButton('Откатить подготовку');undo.clicked.connect(self.restore_client);row.addWidget(undo)
-        row=QHBoxLayout();client_layout.addLayout(row)
-        self.profiles=QComboBox();self.profiles.addItems(self.settings.get('profiles',['Main']));row.addWidget(self.profiles)
-        add=QPushButton('Добавить профиль');add.clicked.connect(self.add_profile);row.addWidget(add)
-        launch=QPushButton('Запустить клиент');launch.clicked.connect(self.launch_client);row.addWidget(launch)
-        description=QLabel('Каждый профиль имеет отдельные настройки EVE. Вход в аккаунт — в окне игры.\n'
-            'Моды загружает LinuxNative из существующего профиля. AutoMining сохраняет игровые настройки;\n'
-            'локальные настройки профилей старого Windows-лаунчера автоматически не переносятся.')
-        description.setWordWrap(True);client_layout.addWidget(description);client_layout.addStretch()
-        log_tab=QWidget();log_layout=QVBoxLayout(log_tab);tabs.addTab(log_tab,'Журналы сервера')
-        row=QHBoxLayout();log_layout.addLayout(row)
-        for name in ('game','market'):
-            button=QPushButton('Обновить '+name);button.clicked.connect(lambda _,n=name:self.logs(n));row.addWidget(button)
-        self.log=QPlainTextEdit();self.log.setReadOnly(True);log_layout.addWidget(self.log)
-        self.setStyleSheet('QWidget {background:#101b27;color:#e4edf5;font-size:13px;} '
-            'QPushButton {background:#23364a;padding:9px;border:1px solid #3b536b;border-radius:4px;} '
-            'QPushButton:disabled {color:#66798b;} QLineEdit,QComboBox,QPlainTextEdit {background:#0b141f;padding:8px;}')
+        self.tracker = ProcessTracker()
+        self.batch_active = False
+        self.cancel_batch = threading.Event()
+        self.build_ui()
         path=CONFIG_DIR/'connection.json'
         if path.exists():
             try:
@@ -88,7 +51,7 @@ class Window(QMainWindow):
             except Exception as error:
                 self.note.setText(str(error))
         self.timer=QTimer(self);self.timer.timeout.connect(self.refresh);self.timer.start(5000)
-        for button in self.controls:button.setEnabled(self.connection is not None)
+        self.sync_view()
         self.refresh()
 
     def run_work(self, operation, on_success, *, quiet=False):
@@ -99,17 +62,21 @@ class Window(QMainWindow):
         self.worker.result.connect(on_success)
         self.worker.error.connect(self.failed)
         self.worker.finished.connect(self.finished)
-        for button in self.controls:button.setEnabled(False)
+        self.sync_view()
+        self.rebuild_profiles()
         self.worker.start();return True
 
     def finished(self):
         worker=self.worker;self.worker=None
         if worker:worker.deleteLater()
-        for button in self.controls:button.setEnabled(self.connection is not None)
+        self.sync_view()
+        self.rebuild_profiles()
 
     def failed(self, message):
         self.note.setText(message)
         self.state.setText('Ответ не подтверждён; состояние сервера неизвестно')
+        self.last_status = None
+        self.sync_view()
 
     def confirm(self, title, message):
         self.timer.stop()
@@ -119,7 +86,7 @@ class Window(QMainWindow):
             self.timer.start(5000)
 
     def import_connection(self):
-        if self.worker:return
+        if self.worker or self.settings.get('pending_job'):return
         self.timer.stop()
         try:name,_=QFileDialog.getOpenFileName(self,'Файл подключения LinuxNative','','JSON (*.json)')
         finally:self.timer.start(5000)
@@ -136,6 +103,8 @@ class Window(QMainWindow):
         except Exception as error:self.failed(str(error))
 
     def refresh(self):
+        if self.tracker.prune_dead():self.rebuild_profiles()
+        self.sync_view()
         if not self.connection:return
         connection=self.connection
         job=self.settings.get('pending_job','')
@@ -169,6 +138,7 @@ class Window(QMainWindow):
             self.settings['pending_job']='';save_settings(self.settings)
             self.note.setText('Запрос не найден. Проверьте показанное состояние служб; команда автоматически не повторяется.')
         if status.get('pending'):self.note.setText('На Linux есть незавершённая операция модов. Откройте manage.sh → восстановление.')
+        self.sync_view()
 
     def action(self, action):
         if self.worker or not self.connection:return
@@ -195,15 +165,20 @@ class Window(QMainWindow):
         self.settings['client_path']=self.client_path.text().strip();save_settings(self.settings)
 
     def browse_client(self):
-        path=QFileDialog.getExistingDirectory(self,'Папка tq основного клиента',self.client_path.text())
+        self.timer.stop()
+        try:path=QFileDialog.getExistingDirectory(self,'Папка tq основного клиента',self.client_path.text())
+        finally:self.timer.start(5000)
         if path:self.client_path.setText(path);self.persist_client_path()
 
     def add_profile(self):
-        value,ok=QInputDialog.getText(self,'Новый профиль','Имя (английские буквы, цифры, _ и -):')
+        self.timer.stop()
+        try:value,ok=QInputDialog.getText(self,'Новый профиль','Имя (английские буквы, цифры, _ и -):')
+        finally:self.timer.start(5000)
         if not ok:return
         if not re.fullmatch(r'[A-Za-z0-9_-]{1,40}',value):self.note.setText('Недопустимое имя профиля.');return
         if value.casefold() in {x.casefold() for x in self.settings['profiles']}:return
         self.settings['profiles'].append(value);save_settings(self.settings);self.profiles.addItem(value);self.profiles.setCurrentText(value)
+        self.rebuild_profiles()
 
     def prepare_client(self):
         if not self.connection or self.worker:return
@@ -216,12 +191,67 @@ class Window(QMainWindow):
         if not self.confirm('Откат клиента','Закройте все EVE-клиенты. Восстановить файлы из LAN-backup?'):return
         path=self.client_path.text().strip();self.run_work(lambda:lan_client.restore(path),self.note.setText)
 
+    def toggle_game(self):
+        running = (self.last_status or {}).get('services', {}).get('game', {}).get('state') == 'running'
+        self.action('stop-game' if running else 'start')
+
     def launch_client(self):
-        if not self.connection:return
-        path=self.client_path.text().strip();profile=self.profiles.currentText();connection=self.connection
-        self.run_work(lambda:lan_client.launch(path,profile,connection),self.note.setText)
+        self.launch_profile(self.profiles.currentText())
+
+    def launch_profile(self, profile):
+        if not self.connection or self.worker:return
+        if self.tracker.is_account_running(profile):
+            self.note.setText('Этот профиль уже запущен.');return
+        self.persist_client_path()
+        path=self.client_path.text().strip();connection=self.connection
+        def done(process):
+            self.tracker.add(profile, profile, process)
+            self.note.setText(f'Клиент запущен: {profile}, PID {process.pid}. Вход в аккаунт — в игре.')
+        self.run_work(lambda:lan_client.launch_process(path,profile,connection),done)
+
+    def launch_all(self):
+        if not self.connection or self.worker:return
+        profiles=[p for p in self.settings['profiles'] if not self.tracker.is_account_running(p)]
+        if not profiles:return
+        self.persist_client_path()
+        path=self.client_path.text().strip();connection=self.connection
+        self.cancel_batch.clear();self.batch_active=True
+        self._home_page.set_launch_progress(0,len(profiles),0)
+        def launch():
+            started=[];error=''
+            for profile in profiles:
+                if self.cancel_batch.is_set():break
+                try:started.append((profile,lan_client.launch_process(path,profile,connection)))
+                except Exception as exc:
+                    error=str(exc);break
+            return started,error
+        def done(result):
+            started,error=result
+            for profile,process in started:self.tracker.add(profile,profile,process)
+            self.batch_active=False
+            self._home_page.finish_launch_progress(len(started),len(started),self.cancel_batch.is_set())
+            self.note.setText(f'Запущено профилей: {len(started)} из {len(profiles)}.' + (' '+error if error else ''))
+        self.run_work(launch,done)
+
+    def cancel_launches(self):
+        self.cancel_batch.set()
+        self.note.setText('Оставшиеся профили не будут запущены; текущий запуск завершается.')
+
+    def kill_clients(self):
+        if self.worker or not self.tracker.running_count:return
+        if not self.confirm('Закрыть клиенты','Завершить только клиенты, запущенные этим окном LAN-лаунчера?'):return
+        self.note.setText(f'Отправлено команд завершения: {self.tracker.kill_all()}.')
+        self.tracker.prune_dead();self.sync_view();self.rebuild_profiles()
+
+    def show_release_notes(self):
+        QMessageBox.information(self,'LAN '+LAN_VERSION,
+            'Возвращены оформление, навигация и главная страница исходного лаунчера.\n'
+            'Управление Linux, журналы, клиентские профили и подготовка доступны через LAN.\n'
+            'Список персонажей, авто-вход и управление модами через API пока недоступны.')
 
     def closeEvent(self,event):
         if self.worker is not None:
             self.note.setText('Дождитесь завершения текущего запроса перед закрытием.');event.ignore()
-        else:event.accept()
+        else:
+            self.timer.stop()
+            event.accept()

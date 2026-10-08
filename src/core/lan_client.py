@@ -167,6 +167,11 @@ def _restore(client_path):
 
 
 def launch(client_path, profile, connection):
+    process = launch_process(client_path, profile, connection)
+    return f'Клиент запущен: профиль {profile}, PID {process.pid}. Вход в аккаунт выполняется в игре.'
+
+
+def launch_process(client_path, profile, connection):
     from .platform import serialize_evejs_client_trust_and_spawn
     with serialize_evejs_client_trust_and_spawn():
         return _launch(client_path, profile, connection)
@@ -218,4 +223,4 @@ def _launch(client_path, profile, connection):
     with serialize_evejs_client_trust_and_spawn():
         process = launch_eve_client(exe, env, exe.parent,
             arguments=('/port:26000', f'/resfileserver={proxy}/resfiles/'))
-    return f'Клиент запущен: профиль {profile}, PID {process.pid}. Вход в аккаунт выполняется в игре.'
+    return process
